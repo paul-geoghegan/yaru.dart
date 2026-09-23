@@ -141,7 +141,7 @@ class _YaruAutocompleteState<T extends Object>
   ) {
     _hasNavigated = false;
 
-    final Object currentToken = Object();
+    final currentToken = Object();
     _activeSearchToken = currentToken;
 
     final result = widget.optionsBuilder(textEditingValue);
@@ -209,7 +209,7 @@ class _YaruAutocompleteState<T extends Object>
       },
       initialValue: widget.initialValue,
       optionsBuilder: _wrappedOptionsBuilder,
-      onSelected: (T option) {
+      onSelected: (option) {
         widget.onSelected?.call(option);
         SchedulerBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
