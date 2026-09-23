@@ -16,6 +16,10 @@ class YaruAutocomplete<T extends Object> extends StatefulWidget {
     this.optionsWidth,
     this.optionsMaxHeight = 200.0,
     this.initialValue,
+    this.clearedAnnouncement = 'Input cleared',
+    this.noOptionsAnnouncement = 'No options found',
+    this.optionsCountAnnouncement = _defaultOptionsCountAnnouncement,
+    this.announcementTextDirection,
   });
 
   /// {@macro flutter.widgets.RawAutocomplete.displayStringForOption}
@@ -50,8 +54,26 @@ class YaruAutocomplete<T extends Object> extends StatefulWidget {
   /// {@macro flutter.widgets.RawAutocomplete.initialValue}
   final TextEditingValue? initialValue;
 
+  /// Announced to screen readers when the input is cleared.
+  final String clearedAnnouncement;
+
+  /// Announced to screen readers when no options match the input.
+  final String noOptionsAnnouncement;
+
+  /// Builds the message announced to screen readers when options are
+  /// available, given the number of options.
+  final String Function(int count) optionsCountAnnouncement;
+
+  /// The text direction used for screen reader announcements.
+  ///
+  /// Defaults to the ambient [Directionality].
+  final TextDirection? announcementTextDirection;
+
   @override
   State<YaruAutocomplete<T>> createState() => _YaruAutocompleteState<T>();
+
+  static String _defaultOptionsCountAnnouncement(int count) =>
+      count == 1 ? '1 option available' : '$count options available';
 
   static Widget _defaultFieldViewBuilder(
     BuildContext context,
@@ -75,6 +97,7 @@ class _YaruAutocompleteState<T extends Object>
   FocusNode? _internalFocusNode;
   FocusOnKeyEventCallback? _originalOnKeyEvent;
   Object? _activeSearchToken;
+  TextDirection _announcementTextDirection = TextDirection.ltr;
 
   @override
   void initState() {
@@ -120,19 +143,25 @@ class _YaruAutocompleteState<T extends Object>
 
   void _announceResultsCount(int count, String text) {
     if (text.isEmpty) {
-      SemanticsService.announce('Input cleared', TextDirection.ltr);
+      SemanticsService.announce(
+        widget.clearedAnnouncement,
+        _announcementTextDirection,
+      );
     } else if (count == 0) {
-      SemanticsService.announce('No options found', TextDirection.ltr);
+      SemanticsService.announce(
+        widget.noOptionsAnnouncement,
+        _announcementTextDirection,
+      );
     } else {
       if (count == 1 && _latestOptions.isNotEmpty) {
         if (widget.displayStringForOption(_latestOptions.first) == text) {
           return;
         }
       }
-      final message = count == 1
-          ? '1 option available'
-          : '$count options available';
-      SemanticsService.announce(message, TextDirection.ltr);
+      SemanticsService.announce(
+        widget.optionsCountAnnouncement(count),
+        _announcementTextDirection,
+      );
     }
   }
 
@@ -162,6 +191,8 @@ class _YaruAutocompleteState<T extends Object>
 
   @override
   Widget build(BuildContext context) {
+    _announcementTextDirection =
+        widget.announcementTextDirection ?? Directionality.of(context);
     return RawAutocomplete<T>(
       displayStringForOption: widget.displayStringForOption,
       fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
@@ -186,7 +217,7 @@ class _YaruAutocompleteState<T extends Object>
                     final option = _latestOptions.first;
                     SemanticsService.announce(
                       widget.displayStringForOption(option),
-                      TextDirection.ltr,
+                      _announcementTextDirection,
                     );
                   }
                   return KeyEventResult.handled;
@@ -225,6 +256,7 @@ class _YaruAutocompleteState<T extends Object>
           options: options,
           optionsWidth: _optionsWidth,
           maxOptionsHeight: widget.optionsMaxHeight,
+          announcementTextDirection: _announcementTextDirection,
         );
       },
     );
@@ -239,6 +271,7 @@ class _YaruAutocompleteOptions<T extends Object> extends StatefulWidget {
     required this.options,
     required this.optionsWidth,
     required this.maxOptionsHeight,
+    required this.announcementTextDirection,
   });
 
   final AutocompleteOptionToString<T> displayStringForOption;
@@ -246,6 +279,7 @@ class _YaruAutocompleteOptions<T extends Object> extends StatefulWidget {
   final Iterable<T> options;
   final double? optionsWidth;
   final double maxOptionsHeight;
+  final TextDirection announcementTextDirection;
 
   @override
   State<_YaruAutocompleteOptions<T>> createState() =>
@@ -277,7 +311,7 @@ class _YaruAutocompleteOptionsState<T extends Object>
         final option = widget.options.elementAt(highlighted);
         SemanticsService.announce(
           widget.displayStringForOption(option),
-          TextDirection.ltr,
+          widget.announcementTextDirection,
         );
       }
     }
