@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaru/widgets.dart';
 
@@ -89,5 +92,119 @@ void main() {
 
     final announcement = await _announcementFor(tester, 'ap');
     expect(announcement.textDirection, TextDirection.ltr);
+  });
+
+  List<String> announcedMessages(WidgetTester tester) =>
+      tester.takeAnnouncements().map((a) => a.message).toList();
+
+  testWidgets('first arrow down announces the first option', (tester) async {
+    await _pumpAutocomplete(tester);
+    await _announcementFor(tester, 'ap');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(announcedMessages(tester), ['apple']);
+  });
+
+  testWidgets('arrow keys announce the highlighted option', (tester) async {
+    await _pumpAutocomplete(tester);
+    await _announcementFor(tester, 'ap');
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    tester.takeAnnouncements();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(announcedMessages(tester), ['apricot']);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+    await tester.pump();
+    expect(announcedMessages(tester), ['apple']);
+  });
+
+  testWidgets('typing again resets arrow navigation', (tester) async {
+    await _pumpAutocomplete(tester);
+    await _announcementFor(tester, 'ap');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+
+    await _announcementFor(tester, 'a');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump();
+    expect(announcedMessages(tester), ['apple']);
+  });
+
+  testWidgets('selecting an option keeps focus and skips the count', (
+    tester,
+  ) async {
+    String? selected;
+    await _pumpAutocomplete(
+      tester,
+      autocomplete: YaruAutocomplete<String>(
+        optionsBuilder: _optionsBuilder,
+        onSelected: (option) => selected = option,
+      ),
+    );
+    await _announcementFor(tester, 'ban');
+
+    await tester.tap(find.text('banana'));
+    await tester.pump();
+    await tester.pump();
+
+    expect(selected, 'banana');
+    expect(announcedMessages(tester), isNot(contains('1 option available')));
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.focusNode.hasFocus, isTrue);
+  });
+
+  testWidgets('ignores results from stale async searches', (tester) async {
+    final searches = <String, Completer<Iterable<String>>>{};
+    await _pumpAutocomplete(
+      tester,
+      autocomplete: YaruAutocomplete<String>(
+        optionsBuilder: (value) =>
+            searches.putIfAbsent(value.text, Completer.new).future,
+      ),
+    );
+
+    await tester.enterText(find.byType(TextFormField), 'a');
+    await tester.enterText(find.byType(TextFormField), 'ap');
+    tester.takeAnnouncements();
+
+    searches['ap']!.complete(['apple', 'apricot']);
+    searches['a']!.complete(_options);
+    await tester.pump();
+
+    expect(announcedMessages(tester), ['2 options available']);
+  });
+
+  testWidgets('tab moves focus past the open options list', (tester) async {
+    final nextFocus = FocusNode();
+    addTearDown(nextFocus.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Column(
+            children: [
+              const YaruAutocomplete<String>(optionsBuilder: _optionsBuilder),
+              TextButton(
+                focusNode: nextFocus,
+                onPressed: () {},
+                child: const Text('next'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextFormField), 'ap');
+    await tester.pump();
+    expect(find.text('apple'), findsOne);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(nextFocus.hasFocus, isTrue);
   });
 }
