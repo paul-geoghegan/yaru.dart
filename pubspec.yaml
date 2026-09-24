@@ -5,8 +5,8 @@ issue_tracker: https://github.com/ubuntu/yaru.dart/issues
 version: 10.2.0
 
 environment:
-  sdk: ">=3.8.0 <4.0.0"
-  flutter: ">=3.32.0"
+  sdk: ">=3.11.0 <4.0.0"
+  flutter: ">=3.41.0"
 
 dependencies:
   animated_vector: ^0.2.2
@@ -23,8 +23,6 @@ dependencies:
   yaru_window: ^0.2.2
 
 dev_dependencies:
-  animated_vector_gen: ^0.2.1
-  build_runner: ^2.4.12
   flutter_lints: ">=5.0.0 <7.0.0"
   flutter_test:
     sdk: flutter
